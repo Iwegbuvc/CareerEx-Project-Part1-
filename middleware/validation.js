@@ -25,9 +25,34 @@ const validateNewUser = async(req, res, next)=>{
 
 }
 
+const validateLogin = async(req, res, next)=>{
+const {email, password} = req.body
+
+const errors = []
+
+if(!email){
+   errors.push("Enter your email")
+}else if(!validateEmail(email)){
+    errors.push("Enter a valid email")
+}
+
+if(!password){
+    errors.push("Please enter your password")
+}
+
+if(errors.length > 0){
+    return res.status(400).json({message: errors})
+}
+
+next()
+}
+
 function validateEmail(email){
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
     return emailRegex.test(String(email).toLowerCase())
 }
 
-module.exports = validateNewUser
+module.exports = {
+    validateNewUser,
+validateLogin
+}
