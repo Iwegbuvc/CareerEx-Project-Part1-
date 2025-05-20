@@ -1,10 +1,13 @@
 const express = require("express")
 const bcrypt = require("bcrypt")
 const connectDatabase = require("./db")
-const User = require("./model/userMode") || require("./model/authModel")
+const User = require("./model/userMode") 
+// || require("./model/authModel")
 const Property = require("./model/propertyModel")
-const { validateNewUser, validateLogin, validateRegistration } = require("./middleware/validation") || require("./middleware/validations")
+const { validateNewUser, validateLogin } = require("./middleware/validation") 
 const jwt = require("jsonwebtoken")
+const validateToken = require("./middleware/validateAuth")
+const requireRole = require("./middleware/requireRole")
 const dotenv = require("dotenv").config()
 
 const app = express()
@@ -63,8 +66,8 @@ app.post("/auth/login", validateLogin, async (req, res) => {
             return res.status(400).json({ message: "Email or password incorrect" })
         }
 
-        const accessToken = jwt.sign({ userId: user._id }, process.env.ACCESS_TOKEN, { expiresIn: "5m" })
-        const refreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN, { expiresIn: "5m" })
+        const accessToken = jwt.sign({ userId: user._id }, process.env.ACCESS_TOKEN, { expiresIn: "35m" })
+        const refreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN, { expiresIn: "35m" })
 
         return res.status(200).json({
             message: "Login successful",
@@ -90,21 +93,21 @@ app.get("/registered-users", async (req, res) => {
 
 // Add property (only agents)
 
-app.post("/add-property/:id", async (req, res) => {
+app.post("/add-property", validateToken, requireRole("agent"), async (req, res) => {
     try {
-        const { id } = req.params
+        // const { id } = req.params
 
-        const user = await User.findById(id)
-        if (!user) {
-            return res.status(404).json({ message: "User not found" })
-        }
+        // const user = await User.findById(id)
+        // if (!user) {
+        //     return res.status(404).json({ message: "User not found" })
+        // }
 
-        if (user.role !== "agent") {
-            return res.status(400).json({ message: "Only agents can post properties." })
-        }
+        // if (user.role !== "agent") {
+        //     return res.status(400).json({ message: "Only agents can post properties." })
+        // }
 
-        const { name, description, price, location } = req.body
-        const newProperty = new Property({ name, description, price, location })
+        const { name, description, price, location} = req.body
+        const newProperty = new Property({ name, description, price, location, createdBy: req.user._id, })
 
         await newProperty.save()
 
@@ -112,4 +115,9 @@ app.post("/add-property/:id", async (req, res) => {
     } catch (error) {
         return res.status(500).json({ message: error.message })
     }
+})
+
+app.post("/protected", validateToken, (req, res)=>{
+
+res.json({ message: "You accessed a protected route!" })
 })

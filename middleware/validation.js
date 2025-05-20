@@ -13,7 +13,7 @@ const validateNewUser = async(req, res, next)=>{
         errors.push("Invalid email format")
     }
 
-    if(password.length < 8){
+    if(!password || password.length < 8){
         errors.push("Minimum of eight characters is required for password")
     }
 
@@ -54,5 +54,5 @@ function validateEmail(email){
 
 module.exports = {
     validateNewUser,
-validateLogin
+    validateLogin
 }
