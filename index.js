@@ -2,17 +2,17 @@ const express = require("express")
 const bcrypt = require("bcrypt")
 const connectDatabase = require("./db")
 const User = require("./model/userMode") 
-// || require("./model/authModel")
 const Property = require("./model/propertyModel")
 const { validateNewUser, validateLogin } = require("./middleware/validation") 
 const jwt = require("jsonwebtoken")
 const validateToken = require("./middleware/validateAuth")
 const requireRole = require("./middleware/requireRole")
+const saveProperty = require("./model/savedPropertyModel")
 const dotenv = require("dotenv").config()
 
 const app = express()
 
-// Connect to Database
+// DATABASE CONNECTION
 connectDatabase()
 
 app.use(express.json())
@@ -23,9 +23,8 @@ app.listen(PORT, () => {
     console.log(`Server running on Port ${PORT}`)
 })
 
-// Register a new user
-
-app.post("/auth/register", validateNewUser || validateRegistration, async (req, res) => {
+// REGISTER NEW USER
+app.post("/auth/register", validateNewUser, async (req, res) => {
     try {
         const { firstName, lastName, email, password, role } = req.body
 
@@ -48,8 +47,17 @@ app.post("/auth/register", validateNewUser || validateRegistration, async (req, 
     }
 })
 
-// Login user
+//  GET ALL USER REGISTERED
+app.get("/registered-users", async (req, res) => {
+    try {
+        const allUsers = await User.find()
+        return res.status(200).json({ message: "Success", allUsers })
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    }
+})
 
+// USER LOGIN
 app.post("/auth/login", validateLogin, async (req, res) => {
     try {
         const { email, password } = req.body
@@ -80,32 +88,9 @@ app.post("/auth/login", validateLogin, async (req, res) => {
     }
 })
 
-//  Get all registered users
- 
-app.get("/registered-users", async (req, res) => {
-    try {
-        const allUsers = await User.find()
-        return res.status(200).json({ message: "Success", allUsers })
-    } catch (error) {
-        return res.status(500).json({ message: error.message })
-    }
-})
-
-// Add property (only agents)
-
+// ADD PROPERTY(only agents)
 app.post("/add-property", validateToken, requireRole("agent"), async (req, res) => {
     try {
-        // const { id } = req.params
-
-        // const user = await User.findById(id)
-        // if (!user) {
-        //     return res.status(404).json({ message: "User not found" })
-        // }
-
-        // if (user.role !== "agent") {
-        //     return res.status(400).json({ message: "Only agents can post properties." })
-        // }
-
         const { name, description, price, location} = req.body
         const newProperty = new Property({ name, description, price, location, createdBy: req.user._id, })
 
@@ -117,7 +102,87 @@ app.post("/add-property", validateToken, requireRole("agent"), async (req, res) 
     }
 })
 
-app.post("/protected", validateToken, (req, res)=>{
+// GET ALL PROPERTY LISTING
+app.get("/properties", validateToken, async(req, res)=>{
+    try {
+        const allProperties = await Property.find()
+        return res.status(200).json({
+            message: "Successful",
+            allProperties
+        })
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
 
-res.json({ message: "You accessed a protected route!" })
+})
+
+// GET ONE PROPERTY BY _ID
+app.get("/properties/:id", validateToken, async(req, res)=>{
+try {
+     const {id} = req.params
+
+    const property = await Property.findById(id)
+
+    if(!property){
+        return res.status(401).json({message: "Property not found"})
+    }
+
+    return res.status(200).json({
+        message: "Successful",
+        property
+    })
+
+} catch (error) {
+     return res.status(500).json({message: error.message})
+}
+})
+
+// SAVE PROPERTY
+app.post("/save-property", validateToken, requireRole("user"), async(req, res)=>{
+    try {
+        const { user_id, property_id } = req.body
+
+    const existingProperty = await saveProperty.findOne({property_id})
+
+    if(existingProperty){
+        return res.status(401).json({message: "Property already saved.."})
+    }
+
+    const newSavedProp = new saveProperty({user_id, property_id})
+
+    await newSavedProp.save()
+
+    return res.status(200).json({
+        message: "Successful"},
+        newSavedProp)
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
+})
+// ALL SAVED PROPERTIES
+app.get("/saveProperties/:id", validateToken, async(req, res)=>{
+  try {
+      const {id} = req.params
+    
+    const savedProprty = await saveProperty.find({user_id: id}).populate("property_id")
+
+    if(savedProprty.length === 0){
+    return res.status(200).json({message: "No saved properties found." })
+    }
+
+    return res.status(200).json({message: "Successful"}, savedProprty)
+    } catch (error) {
+    return res.status(500).json({message: error.message})
+    }
+})
+// UNSAVE A PROPERTY
+app.delete("/unsave-property", validateToken, async(req, res)=>{
+    try {
+        const {id} = req.body
+    const unsaveProperty = await saveProperty.findByIdAndDelete(id)
+    return res.status(200).json({message: "Property was successfully unsaved"})
+    } catch (error) {
+         return res.status(500).json({message: error.message})
+    }
+    
 })
