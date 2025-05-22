@@ -17,6 +17,10 @@ const validateNewUser = async(req, res, next)=>{
         errors.push("Minimum of eight characters is required for password")
     }
 
+    if(role && !["agent" || "user"].includes(role)){
+        errors.push("Invalid role: must be either 'agent' or 'user'")
+    }
+
     if(errors.length > 0){
         return res.status(400).json({message: errors})
     }

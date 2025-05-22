@@ -24,7 +24,8 @@ try {
         return res.status(404).json({message: "User account not found!"})
     }
 
-  req.user = user
+  // req.user = user
+  req.user = {id: user._id, role: user.role }
 
     next()
 
