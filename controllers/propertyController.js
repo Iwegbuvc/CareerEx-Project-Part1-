@@ -48,9 +48,31 @@ try {
 }
 }
 
+const propertyByAvailability = async(req, res)=>{
+    const {available} = req.query
+
+    const filter = {}
+
+    if (available === true){
+        filter.isAvailable === true
+    }
+    try {
+       const availableProperties = await Property.find(filter)
+
+       return res.status(200).json({
+        message: "Success", 
+        availableProperties
+    })
+    } catch (error) {
+         return res.status(500).json({message: error.message})
+    }
+
+    
+}
 module.exports = {
     addProperty,
     allPropertyList,
-    oneProperty
+    oneProperty,
+    propertyByAvailability
 }
 

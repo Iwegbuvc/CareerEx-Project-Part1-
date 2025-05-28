@@ -3,9 +3,10 @@ const connectDatabase = require("./db")
 const { validateNewUser, validateLogin } = require("./middleware/validation") 
 const validateToken = require("./middleware/validateAuth")
 const requireRole = require("./middleware/requireRole")
-const { registerUser, loginUser, allRegisteredUsers } = require("./controllers/authController")
+const { registerUser, loginUser, allRegisteredUsers, forgotPasswordHandler, resetPasswordHandler } = require("./controllers/authController")
 const { addProperty, allPropertyList, oneProperty } = require("./controllers/propertyController")
 const { savingProperty, userSavedProperties, unsaveProperty } = require("./controllers/savePropertyContoller")
+const Property = require("./model/propertyModel")
 const dotenv = require("dotenv").config()
 
 const app = express()
@@ -30,6 +31,12 @@ app.get("/registered-users", allRegisteredUsers)
 // USER LOGIN
 app.post("/auth/login", validateLogin, loginUser)
 
+// FORGOT PASSWORD
+app.post("/forgot-password", forgotPasswordHandler)
+
+// RESET PASSWORD
+app.patch("/reset-password", resetPasswordHandler)
+
 // ADD PROPERTY(only agents)
 app.post("/add-property", validateToken, requireRole("agent"), addProperty)
 
@@ -42,8 +49,11 @@ app.get("/properties/:id", validateToken, oneProperty)
 // SAVE PROPERTY
 app.post("/save-property", validateToken, requireRole("user"), savingProperty)
 
-// ALL SAVED PROPERTIES
+// ALL USER SAVED PROPERTIES
 app.get("/saveProperties/:id", validateToken, userSavedProperties )
 
 // UNSAVE A PROPERTY
 app.delete("/unsave-property/:id", validateToken, unsaveProperty)
+
+
+app.get("/property-by-availability")
