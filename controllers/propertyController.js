@@ -49,22 +49,29 @@ try {
 }
 
 const propertyByAvailability = async(req, res)=>{
-    const {available} = req.query
+    const {available, location} = req.query
 
     const filter = {}
 
-    if (available === true){
-        filter.isAvailable === true
+    if (available === "true"){
+        filter.isAvailable = true
+    }else if (available === "false"){
+        filter.isAvailable = false
     }
+
+    if (location){
+        filter.location = location
+    }
+    
     try {
-       const availableProperties = await Property.find(filter)
+       const result = await Property.find(filter)
 
        return res.status(200).json({
         message: "Success", 
-        availableProperties
+        result
     })
     } catch (error) {
-         return res.status(500).json({message: error.message})
+         return res.status(500).json({message: "Error fetching properties", error: error.message})
     }
 
     
@@ -75,4 +82,3 @@ module.exports = {
     oneProperty,
     propertyByAvailability
 }
-

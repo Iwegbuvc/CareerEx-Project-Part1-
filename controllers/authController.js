@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken")
 const User = require("../model/userMode")
 const bcrypt = require("bcrypt")
-const sendUserEmail = require("../sendEmail")
+// const sendUserEmail = require("../sendEmail")
 
 // Register New User
 const registerUser = async (req, res)=>{
@@ -61,69 +61,69 @@ const loginUser = async(req, res)=>{
 }
 
 // Forgot Password
-const forgotPasswordHandler = async(req, res)=>{
-try {
+// const forgotPasswordHandler = async(req, res)=>{
+// try {
     
-    const {email} = req.body
+//     const {email} = req.body
 
-    const user = await User.findOne({email})
+//     const user = await User.findOne({email})
 
-    if(!user){
-        return res.status(404).json({message: "User account not found"})
-    }
- if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
-    const resetToken = jwt.sign({userId: user._id}, `${process.env.RESET_TOKEN}`, {expiresIn: "15m"})
-    // Send Email
+//     if(!user){
+//         return res.status(404).json({message: "User account not found"})
+//     }
+//  if (!email) {
+//     return res.status(400).json({ message: "Email is required" });
+//   }
+//     const resetToken = jwt.sign({userId: user._id}, `${process.env.RESET_TOKEN}`, {expiresIn: "15m"})
+//     // Send Email
 
-    const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+//     const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
     
-    const htmlMessage = `
-      <p>Hello,</p>
-      <p>You requested a password reset.</p>
-      <p><a href="${resetLink}">Click here to reset your password</a></p>
-      <p>This link will expire in 15 minutes.</p>
-      <p>If you did not request this, you can ignore this email.</p>
-    `;
+//     const htmlMessage = `
+//       <p>Hello,</p>
+//       <p>You requested a password reset.</p>
+//       <p><a href="${resetLink}">Click here to reset your password</a></p>
+//       <p>This link will expire in 15 minutes.</p>
+//       <p>If you did not request this, you can ignore this email.</p>
+//     `;
 
-    await sendUserEmail( {email,  subject: "Reset Password", htmlMessage })
+//     await sendUserEmail( {email,  subject: "Reset Password", htmlMessage })
 
-    return res.status(200).json({message: "Please check your email inbox."})
+//     return res.status(200).json({message: "Please check your email inbox."})
 
-} catch (error) {
-    return res.status(500).json({ message: error.message })
-}
-}
+// } catch (error) {
+//     return res.status(500).json({ message: error.message })
+// }
+// }
 
 // Reset Password
-const resetPasswordHandler = async(req, res)=>{
-try {
-    const {token} = req.params
-    const {password} = req.body
+// const resetPasswordHandler = async(req, res)=>{
+// try {
+//     const {token} = req.params
+//     const {password} = req.body
 
-    const decoded = jwt.verify(token, process.env.RESET_TOKEN)
+//     const decoded = jwt.verify(token, process.env.RESET_TOKEN)
 
-    const user = await User.findById(decoded.userId)
+//     const user = await User.findById(decoded.userId)
 
-     if(!user){
-        return res.status(404).json({message: "User not found"})
-    }
+//      if(!user){
+//         return res.status(404).json({message: "User not found"})
+//     }
 
-    const hashPassword = await bcrypt.hash(password, 12)
+//     const hashPassword = await bcrypt.hash(password, 12)
 
-    user.password = hashPassword
+//     user.password = hashPassword
 
-    await user.save()
+//     await user.save()
 
-    return res.status(200).json({message: "Password reset successfully"})
+//     return res.status(200).json({message: "Password reset successfully"})
     
    
-} catch (error) {
-     return res.status(500).json({ message: error.message })
-}
-}
+// } catch (error) {
+//      return res.status(500).json({ message: error.message })
+// }
+// }
 
 // Get All Registered Users 
 const allRegisteredUsers = async (req, res)=>{
@@ -143,8 +143,6 @@ try {
 module.exports = {
     registerUser,
     loginUser,
-    forgotPasswordHandler,
-    resetPasswordHandler,
     allRegisteredUsers
 }
 
