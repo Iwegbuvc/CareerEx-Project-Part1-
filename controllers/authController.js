@@ -1,10 +1,11 @@
 const jwt = require("jsonwebtoken")
 const User = require("../model/userMode")
 const bcrypt = require("bcrypt")
-// const sendUserEmail = require("../sendEmail")
+const transporter = require("../utilities/nodeMailer")
+
 
 // Register New User
-const registerUser = async (req, res)=>{
+const registerUserHandler = async (req, res)=>{
   try {
     const  { firstName, lastName, email, password, role } = req.body
 
@@ -19,7 +20,19 @@ const registerUser = async (req, res)=>{
     const newUser = new User({ firstName, lastName, email, password: hashPassword, role })
 
     newUser.save()
-    return res.status(200).json({
+
+        //  SENDING EMAIL TO USER EMAIL
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: email,
+            subject: "Congrat on registering with us",
+            text: `Welcome to SafeHeaven website. Your account has been succesfully created with this email: ${email} `
+        }
+
+        await transporter.sendMail(mailOptions)
+
+
+        return res.status(200).json({
         message: "User registration successful"},
         newUser
     )
@@ -29,7 +42,7 @@ const registerUser = async (req, res)=>{
 }
 
 // Login Registered User
-const loginUser = async(req, res)=>{
+const loginUserHandler = async(req, res)=>{
     try {
         const {email, password} = req.body
 
@@ -47,6 +60,7 @@ const loginUser = async(req, res)=>{
     const accessToken = jwt.sign({userId: user._id}, `${process.env.ACCESS_TOKEN}`, {expiresIn: "20m"})
      const refreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN, { expiresIn: "7d" })
 
+
         return res.status(200).json({
             message: "Login successful",
             user,
@@ -61,69 +75,100 @@ const loginUser = async(req, res)=>{
 }
 
 // Forgot Password
-// const forgotPasswordHandler = async(req, res)=>{
-// try {
+const forgotPasswordHandler = async(req, res)=>{
+try {
     
-//     const {email} = req.body
+    const {email} = req.body
 
-//     const user = await User.findOne({email})
+     if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
 
-//     if(!user){
-//         return res.status(404).json({message: "User account not found"})
-//     }
-//  if (!email) {
-//     return res.status(400).json({ message: "Email is required" });
-//   }
-//     const resetToken = jwt.sign({userId: user._id}, `${process.env.RESET_TOKEN}`, {expiresIn: "15m"})
-//     // Send Email
+     const user = await User.findOne({email})
 
-//     const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    if(!user){
+        return res.status(404).json({message: "User account not found"})
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000))
+
+    user.resetOtp = otp
+    user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000
+ 
+    await user.save()
+
+    const mailOption = {
+        from: process.env.SENDER_EMAIL,
+        to: user.email,
+        subject: "Password Reset OTP",
+        text:`Your OTP for resetting your password is ${otp}. Use this OTP to proceed with resetting your password.`
+    }
+
+    await transporter.sendMail(mailOption)
+    // const resetToken = jwt.sign({userId: user._id}, `${process.env.RESET_TOKEN}`, {expiresIn: "15m"})
+    // Send Email
+
+    // const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
     
-//     const htmlMessage = `
-//       <p>Hello,</p>
-//       <p>You requested a password reset.</p>
-//       <p><a href="${resetLink}">Click here to reset your password</a></p>
-//       <p>This link will expire in 15 minutes.</p>
-//       <p>If you did not request this, you can ignore this email.</p>
-//     `;
+    // const htmlMessage = `
+    //   <p>Hello,</p>
+    //   <p>You requested a password reset.</p>
+    //   <p><a href="${resetLink}">Click here to reset your password</a></p>
+    //   <p>This link will expire in 15 minutes.</p>
+    //   <p>If you did not request this, you can ignore this email.</p>
+    // `;
 
-//     await sendUserEmail( {email,  subject: "Reset Password", htmlMessage })
+    // await sendUserEmail( {email,  subject: "Reset Password", htmlMessage })
 
-//     return res.status(200).json({message: "Please check your email inbox."})
+    return res.status(200).json({message: "OTP sent to your email."})
 
-// } catch (error) {
-//     return res.status(500).json({ message: error.message })
-// }
-// }
+} catch (error) {
+    return res.status(500).json({ message: error.message })
+}
+}
 
-// Reset Password
-// const resetPasswordHandler = async(req, res)=>{
-// try {
-//     const {token} = req.params
-//     const {password} = req.body
+// RESET USER PASSWORD
+const resetPasswordHandler = async(req, res)=>{
+try {
+    
+    const { email, otp, newPassword } = req.body
+    
 
-//     const decoded = jwt.verify(token, process.env.RESET_TOKEN)
+    if(!email || !otp || !newPassword){
+      return res.status(400).json({message: "Email, OTP, and new password are required"})
+    }
 
-//     const user = await User.findById(decoded.userId)
+    const user = await User.findOne({email})
 
-//      if(!user){
-//         return res.status(404).json({message: "User not found"})
-//     }
+     if(!user){
+        return res.status(404).json({message: "User not found"})
+    }
 
-//     const hashPassword = await bcrypt.hash(password, 12)
+    if(user.resetOtp === "" || user.resetOtp !== otp){
+        return res.status(400).json({message: "Invalid OTP"})
+    }
 
-//     user.password = hashPassword
+    if(user.resetOtpExpireAt < Date.now()){
+        return res.status(400).json({message: "OTP Expired"})
+    }
 
-//     await user.save()
+    const hashPassword = await bcrypt.hash(newPassword, 12)
 
-//     return res.status(200).json({message: "Password reset successfully"})
+    user.password = hashPassword
+
+    user.resetOtp = "",
+    user.resetOtpExpireAt = 0
+
+    await user.save()
+
+    return res.status(200).json({message: "Password reset successfully"})
     
    
-// } catch (error) {
-//      return res.status(500).json({ message: error.message })
-// }
-// }
+} catch (error) {
+     return res.status(500).json({ message: error.message })
+}
+}
 
 // Get All Registered Users 
 const allRegisteredUsers = async (req, res)=>{
@@ -141,8 +186,10 @@ try {
 }
 
 module.exports = {
-    registerUser,
-    loginUser,
+    registerUserHandler,
+    loginUserHandler,
+    forgotPasswordHandler,
+    resetPasswordHandler,
     allRegisteredUsers
 }
 

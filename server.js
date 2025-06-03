@@ -1,9 +1,13 @@
+
+require("dotenv").config();
+// console.log("✅ dotenv loaded");
 const express = require("express")
 const connectDatabase = require("./db")
 const authsRouter = require("./route/authRoutes")
 const propertyRouter = require("./route/propertyRoutes")
 const savePropertyRouter = require("./route/savedPropertyRoutes")
-const dotenv = require("dotenv").config()
+// const dotenv = require("dotenv").config()
+console.log("Starting server...");
 
 const app = express()
 
