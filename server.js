@@ -1,13 +1,12 @@
-
 require("dotenv").config();
-// console.log("✅ dotenv loaded");
 const express = require("express")
 const connectDatabase = require("./db")
 const authsRouter = require("./route/authRoutes")
 const propertyRouter = require("./route/propertyRoutes")
 const savePropertyRouter = require("./route/savedPropertyRoutes")
-// const dotenv = require("dotenv").config()
-console.log("Starting server...");
+const cookieParser =require("cookie-parser")
+
+
 
 const app = express()
 
@@ -15,6 +14,7 @@ const app = express()
 connectDatabase()
 
 app.use(express.json())
+app.use(cookieParser());
 
 const PORT = process.env.PORT || 9000
 

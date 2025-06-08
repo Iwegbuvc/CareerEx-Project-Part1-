@@ -57,46 +57,70 @@ const loginUserHandler = async(req, res)=>{
         return res.status(401).json({message: "User email or password incorrect!"})
     }
 
-    const accessToken = jwt.sign({userId: user._id}, `${process.env.ACCESS_TOKEN}`, {expiresIn: "20m"})
+    const accessToken = jwt.sign({userId: user._id}, `${process.env.ACCESS_TOKEN}`, {expiresIn: "1d"})
      const refreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN, { expiresIn: "7d" })
 
+     res.cookie("refreshtoken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "Strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+     } )
+
+     const { _id, firstName: name, email: userEmail, role } = user
 
         return res.status(200).json({
             message: "Login successful",
-            user,
+            user:{_id, firstName: name, email: userEmail, role},
             accessToken,
-            refreshToken
         })
     } catch (error) {
          return res.status(500).json({ message: error.message })
-    }
-    
+    } 
+}
 
+// REFRESH TOKEN HANDLER
+const refreshTokenHandler = async(req, res)=>{
+   try {
+     const {refreshToken} = req.cookies
+
+    if(!refreshToken){
+        return res.status(401).json({ message: "Refresh token missing" });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN)
+
+    if(!decoded){
+        return res.status(403).json({ message: "Invalid or expired refresh token" });
+    }
+
+    const newAccessToken = jwt.sign({userId: decoded.userId}, `${process.env.ACCESS_TOKEN}`, {expiresIn: "20m"})
+
+    return res.status(200).json({accessToken:  newAccessToken})
+
+   } catch (error) {
+      return res.status(500).json({ message: error.message });
+   }
 }
 
 // Forgot Password
 const forgotPasswordHandler = async(req, res)=>{
 try {
-    
     const {email} = req.body
-
      if (!email) {
     return res.status(400).json({ message: "Email is required" });
   }
-
      const user = await User.findOne({email})
 
     if(!user){
         return res.status(404).json({message: "User account not found"})
     }
-
     const otp = String(Math.floor(100000 + Math.random() * 900000))
-
     user.resetOtp = otp
+    // const hashedOtp = await bcrypt.hash(otp, 12)
+    // user.resetOtp = hashedOtp
     user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000
- 
     await user.save()
-
     const mailOption = {
         from: process.env.SENDER_EMAIL,
         to: user.email,
@@ -105,22 +129,7 @@ try {
     }
 
     await transporter.sendMail(mailOption)
-    // const resetToken = jwt.sign({userId: user._id}, `${process.env.RESET_TOKEN}`, {expiresIn: "15m"})
-    // Send Email
-
-    // const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-
-    
-    // const htmlMessage = `
-    //   <p>Hello,</p>
-    //   <p>You requested a password reset.</p>
-    //   <p><a href="${resetLink}">Click here to reset your password</a></p>
-    //   <p>This link will expire in 15 minutes.</p>
-    //   <p>If you did not request this, you can ignore this email.</p>
-    // `;
-
-    // await sendUserEmail( {email,  subject: "Reset Password", htmlMessage })
-
+  
     return res.status(200).json({message: "OTP sent to your email."})
 
 } catch (error) {
@@ -131,40 +140,28 @@ try {
 // RESET USER PASSWORD
 const resetPasswordHandler = async(req, res)=>{
 try {
-    
     const { email, otp, newPassword } = req.body
-    
-
     if(!email || !otp || !newPassword){
       return res.status(400).json({message: "Email, OTP, and new password are required"})
     }
-
     const user = await User.findOne({email})
 
      if(!user){
         return res.status(404).json({message: "User not found"})
     }
-
     if(user.resetOtp === "" || user.resetOtp !== otp){
         return res.status(400).json({message: "Invalid OTP"})
     }
-
     if(user.resetOtpExpireAt < Date.now()){
         return res.status(400).json({message: "OTP Expired"})
     }
-
     const hashPassword = await bcrypt.hash(newPassword, 12)
-
     user.password = hashPassword
-
     user.resetOtp = "",
     user.resetOtpExpireAt = 0
-
     await user.save()
-
     return res.status(200).json({message: "Password reset successfully"})
     
-   
 } catch (error) {
      return res.status(500).json({ message: error.message })
 }
@@ -188,6 +185,7 @@ try {
 module.exports = {
     registerUserHandler,
     loginUserHandler,
+    refreshTokenHandler,
     forgotPasswordHandler,
     resetPasswordHandler,
     allRegisteredUsers
